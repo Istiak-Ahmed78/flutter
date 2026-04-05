@@ -1115,12 +1115,11 @@ void main() {
     addTearDown(image.dispose);
 
     final imageInfo1 = ImageInfo(image: image.clone());
+    addTearDown(imageInfo1.dispose);
     final imageInfo2 = ImageInfo(image: image.clone());
+    addTearDown(imageInfo2.dispose);
 
     // These should be considered clones because all properties match
     expect(imageInfo1.isCloneOf(imageInfo2), isTrue);
-
-    imageInfo1.dispose();
-    imageInfo2.dispose();
   });
 }
