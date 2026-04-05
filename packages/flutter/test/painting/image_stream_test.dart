@@ -1100,13 +1100,12 @@ void main() {
     addTearDown(image.dispose);
 
     final imageInfo1 = ImageInfo(image: image.clone());
+    addTearDown(imageInfo1.dispose);
     final imageInfo2 = ImageInfo(image: image.clone(), scale: 2.0);
+    addTearDown(imageInfo2.dispose);
 
     // These should NOT be considered clones because their scales differ
     expect(imageInfo1.isCloneOf(imageInfo2), isFalse);
-
-    imageInfo1.dispose();
-    imageInfo2.dispose();
   });
 
   testWidgets('ImageInfo.isCloneOf returns true when all properties match', (
