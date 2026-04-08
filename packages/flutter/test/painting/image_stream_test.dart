@@ -1114,7 +1114,7 @@ void main() {
     final Image image = await createTestImage(width: 10, height: 10);
     addTearDown(image.dispose);
 
-    final imageInfo1 = ImageInfo(image: image.clone());
+    final imageInfo1 = ImageInfo(image: image.clone(), scale: 2.0);
     addTearDown(imageInfo1.dispose);
     final imageInfo2 = ImageInfo(image: image.clone(), scale: 2.0);
     addTearDown(imageInfo2.dispose);
