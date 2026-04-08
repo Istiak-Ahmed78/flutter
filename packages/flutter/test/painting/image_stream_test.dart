@@ -1116,7 +1116,7 @@ void main() {
 
     final imageInfo1 = ImageInfo(image: image.clone());
     addTearDown(imageInfo1.dispose);
-    final imageInfo2 = ImageInfo(image: image.clone());
+    final imageInfo2 = ImageInfo(image: image.clone(), scale: 2.0);
     addTearDown(imageInfo2.dispose);
 
     // These should be considered clones because all properties match
