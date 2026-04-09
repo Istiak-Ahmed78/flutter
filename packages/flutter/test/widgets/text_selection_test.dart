@@ -731,6 +731,43 @@ void main() {
     }
   }, variant: TargetPlatformVariant.all());
 
+  testWidgets('on Android, Shift+Tap does not extend selection when using touch input', (
+    WidgetTester tester,
+  ) async {
+    // This test verifies the fix for https://github.com/flutter/flutter/issues/184744
+    // When using a software keyboard like Gboard on Android, pressing Shift
+    // and then tapping should NOT extend selection - it should just move the cursor.
+
+    // Skip test on non-Android platforms
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    await pumpTextSelectionGestureDetectorBuilder(tester);
+
+    final FakeRenderEditable renderEditable = tester.renderObject(find.byType(FakeEditable));
+
+    // Set an initial collapsed selection (cursor at position 5)
+    renderEditable.selection = const TextSelection.collapsed(offset: 5);
+
+    // Simulate Shift key being pressed (as would happen when using Gboard's Shift key)
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+
+    // Now simulate a tap at a different position
+    final TestGesture gesture = await tester.startGesture(const Offset(100.0, 200.0), pointer: 0);
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    // Release the Shift key
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    // On Android with touch input, Shift+Tap should NOT extend the selection.
+    // It should call selectPosition (move cursor), NOT extendSelection.
+    // If selection was extended, we would see a non-collapsed selection.
+    expect(renderEditable.selectPositionAtCalled, isTrue);
+    expect(renderEditable.lastCause, SelectionChangedCause.tap);
+  });
+
   testWidgets(
     'test TextSelectionGestureDetectorBuilder toggles toolbar on single tap on previous selection iOS',
     (WidgetTester tester) async {
