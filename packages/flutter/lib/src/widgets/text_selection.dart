@@ -2463,8 +2463,19 @@ class TextSelectionGestureDetectorBuilder {
     // renderEditable.selection is invalid.
     final bool isShiftPressedValid =
         _isShiftPressed && renderEditable.selection?.baseOffset != null;
+
+    // On mobile platforms (Android) with touch input, we should not extend
+    // selection when Shift is pressed via a software keyboard (like Gboard).
+    // Software keyboards send Shift key events that are detected by HardwareKeyboard,
+    // but this is not the same as a physical keyboard where Shift+tap extends selection.
+    // For touch input on mobile, tapping should always move the cursor, not extend selection.
+    final bool shouldExtendSelection =
+        isShiftPressedValid &&
+        !(defaultTargetPlatform == TargetPlatform.android && kind == PointerDeviceKind.touch);
+
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
+        // Handle stylus handwriting first (stylus input has its own flow)
         if (editableText.widget.stylusHandwritingEnabled) {
           final bool stylusEnabled = switch (kind) {
             PointerDeviceKind.stylus ||
@@ -2480,6 +2491,13 @@ class TextSelectionGestureDetectorBuilder {
             });
           }
         }
+        editableText.hideToolbar(false);
+        if (shouldExtendSelection) {
+          _extendSelection(details.globalPosition, SelectionChangedCause.tap);
+          return;
+        }
+        renderEditable.selectPosition(cause: SelectionChangedCause.tap);
+        editableText.showSpellCheckSuggestionsToolbar();
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:
         // On mobile platforms the selection is set on tap up.
@@ -2600,6 +2618,17 @@ class TextSelectionGestureDetectorBuilder {
     // renderEditable.selection is invalid.
     final bool isShiftPressedValid =
         _isShiftPressed && renderEditable.selection?.baseOffset != null;
+
+    // On mobile platforms (Android) with touch input, we should not extend
+    // selection when Shift is pressed via a software keyboard (like Gboard).
+    // Software keyboards send Shift key events that are detected by HardwareKeyboard,
+    // but this is not the same as a physical keyboard where Shift+tap extends selection.
+    // For touch input on mobile, tapping should always move the cursor, not extend selection.
+    final bool shouldExtendSelection =
+        isShiftPressedValid &&
+        !(defaultTargetPlatform == TargetPlatform.android &&
+            details.kind == PointerDeviceKind.touch);
+
     switch (defaultTargetPlatform) {
       case TargetPlatform.linux:
       case TargetPlatform.macOS:
@@ -2608,7 +2637,7 @@ class TextSelectionGestureDetectorBuilder {
       // On desktop platforms the selection is set on tap down.
       case TargetPlatform.android:
         editableText.hideToolbar(false);
-        if (isShiftPressedValid) {
+        if (shouldExtendSelection) {
           _extendSelection(details.globalPosition, SelectionChangedCause.tap);
           return;
         }
