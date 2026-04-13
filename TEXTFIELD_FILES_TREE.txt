@@ -1,0 +1,143 @@
+Flutter Text Field Related Files - Directory Tree
+=====================================================
+
+packages/flutter/lib/src/
+│
+├── material/                          [Material Design TextFields]
+│   ├── text_field.dart               (76 KB)  ⭐ Main Material TextField
+│   ├── text_form_field.dart          (18 KB)  Form-integrated TextField
+│   ├── text_button.dart              (23 KB)  Text button (related)
+│   ├── text_button_theme.dart        (4 KB)   Text button theme
+│   ├── text_theme.dart               (33 KB)  Typography theming
+│   ├── text_selection.dart           (12 KB)  Selection handling
+│   ├── text_selection_theme.dart     (7 KB)   Selection theme
+│   ├── text_selection_toolbar.dart   (29 KB)  Copy/Paste toolbar
+│   └── text_selection_toolbar_text_button.dart (6 KB)
+│
+├── cupertino/                         [iOS-Style TextFields]
+│   ├── text_field.dart               (75 KB)  ⭐ Main Cupertino TextField
+│   ├── text_form_field_row.dart      (16 KB)  iOS form field row
+│   ├── text_theme.dart               (16 KB)  iOS typography
+│   ├── text_selection.dart           (12 KB)  iOS selection
+│   ├── text_selection_toolbar.dart   (45 KB)  iOS toolbar
+│   └── text_selection_toolbar_button.dart (8 KB)
+│
+├── widgets/                           [Widget Framework Layer]
+│   └── editable_text.dart            (280 KB) ⭐ Core EditableText widget
+│
+├── rendering/                         [Rendering Layer]
+│   ├── editable.dart                 (118 KB) ⭐ RenderEditable
+│   └── paragraph.dart                (149 KB) ⭐ RenderParagraph
+│
+├── painting/                          [Painting & Styling Layer]
+│   ├── text_painter.dart             (73 KB)  ⭐ Text rendering
+│   ├── text_style.dart               (74 KB)  ⭐ TextStyle class
+│   ├── text_span.dart                (20 KB)  InlineSpan/TextSpan
+│   └── text_scaler.dart              (6 KB)   Text scaling
+│
+└── services/                          [Platform Integration Layer]
+    ├── text_input.dart               (130 KB) ⭐ Platform text input
+    ├── text_editing.dart             (10 KB)  TextEditingValue
+    ├── text_editing_delta.dart       (23 KB)  Change tracking
+    ├── text_formatter.dart           (26 KB)  Input formatting
+    ├── text_boundary.dart            (8 KB)   Boundary detection
+    └── text_layout_metrics.dart      (3 KB)   Layout metrics
+
+
+KEY STATISTICS
+==============
+
+Total Files:    27
+Total Size:     ~953 KB
+
+By Module:
+  Material:     210 KB (9 files)
+  Cupertino:    172 KB (6 files)
+  Widgets:      280 KB (1 file)
+  Rendering:    267 KB (2 files)
+  Painting:     173 KB (4 files)
+  Services:     199 KB (5 files)
+
+
+INTERACTION FLOW
+================
+
+User Input → Material/Cupertino TextField
+             ↓
+          EditableText (widgets/editable_text.dart)
+             ↓
+          Painting Layer (TextStyle, TextPainter)
+             ↓
+          Rendering Layer (RenderEditable, RenderParagraph)
+             ↓
+          Services Layer (text_input.dart)
+             ↓
+          Platform Native Code (iOS/Android)
+
+
+LARGEST FILES (By Size)
+=======================
+1. editable_text.dart          280 KB  (Core framework widget)
+2. text_input.dart             130 KB  (Platform integration)
+3. rendering/editable.dart     118 KB  (Rendering engine)
+4. rendering/paragraph.dart    149 KB  (Layout engine)
+5. material/text_field.dart     76 KB  (Material implementation)
+6. cupertino/text_field.dart    75 KB  (Cupertino implementation)
+7. painting/text_painter.dart   73 KB  (Painting engine)
+8. painting/text_style.dart     74 KB  (Styling)
+
+
+MOST IMPORTANT FILES (For Understanding)
+=========================================
+⭐ START HERE:
+  - material/text_field.dart    (How Material TextFields work)
+  - cupertino/text_field.dart   (How iOS TextFields work)
+
+⭐ THEN:
+  - widgets/editable_text.dart  (Core text editing logic)
+
+⭐ THEN:
+  - rendering/editable.dart     (How text is rendered)
+  - painting/text_painter.dart  (How text is painted)
+
+⭐ FINALLY:
+  - services/text_input.dart    (Platform communication)
+
+
+FILE PURPOSES AT A GLANCE
+=========================
+
+INPUT & FORMS
+  text_field.dart (M)           - Main input widget
+  text_field.dart (C)           - iOS input widget
+  text_form_field.dart          - Form-integrated input
+  text_form_field_row.dart      - iOS form row
+
+STYLING & APPEARANCE
+  text_style.dart               - Font and color styling
+  text_theme.dart (M)           - Material typography
+  text_theme.dart (C)           - iOS typography
+  text_scaler.dart              - Responsive sizing
+
+TEXT LAYOUT
+  text_painter.dart             - Measure and paint text
+  text_span.dart                - Rich text spans
+  paragraph.dart                - Paragraph layout
+
+EDITING & SELECTION
+  editable_text.dart            - Core editing widget
+  rendering/editable.dart       - Editable rendering
+  text_editing.dart             - Text state model
+  text_editing_delta.dart       - Change tracking
+
+TEXT SELECTION UI
+  text_selection.dart (M)       - Material selection
+  text_selection.dart (C)       - iOS selection
+  text_selection_toolbar.dart   - Copy/Paste UI
+  text_selection_theme.dart     - Selection styling
+
+PLATFORM INTEGRATION
+  text_input.dart               - Native channels
+  text_formatter.dart           - Input validation
+  text_boundary.dart            - Word/line boundaries
+  text_layout_metrics.dart      - Platform metrics
