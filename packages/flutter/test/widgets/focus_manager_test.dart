@@ -19,7 +19,7 @@ void main() {
     return widgetKey.currentContext!;
   }
 
-  group('FocusNode', () {
+  group(FocusNode, () {
     testWidgets('Can add children.', (WidgetTester tester) async {
       final BuildContext context = await setupWidget(tester);
       final parent = FocusNode();
@@ -446,7 +446,7 @@ void main() {
     });
   });
 
-  group('FocusScopeNode', () {
+  group(FocusScopeNode, () {
     testWidgets('Can setFirstFocus on a scope with no manager.', (WidgetTester tester) async {
       final BuildContext context = await setupWidget(tester);
       final scope = FocusScopeNode(debugLabel: 'Scope');
