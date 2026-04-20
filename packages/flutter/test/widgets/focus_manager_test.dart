@@ -6,9 +6,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 
@@ -19,7 +19,7 @@ void main() {
     return widgetKey.currentContext!;
   }
 
-  group(FocusNode, () {
+  group('FocusNode', () {
     testWidgets('Can add children.', (WidgetTester tester) async {
       final BuildContext context = await setupWidget(tester);
       final parent = FocusNode();
@@ -446,7 +446,7 @@ void main() {
     });
   });
 
-  group(FocusScopeNode, () {
+  group('FocusScopeNode', () {
     testWidgets('Can setFirstFocus on a scope with no manager.', (WidgetTester tester) async {
       final BuildContext context = await setupWidget(tester);
       final scope = FocusScopeNode(debugLabel: 'Scope');
@@ -1835,6 +1835,237 @@ void main() {
 
       expect(node.hasPrimaryFocus, isTrue);
       expect(scope2.hasFocus, isTrue);
+    });
+  });
+  group('FocusNode.canRequestFocus regression tests (issue #185076)', () {
+    testWidgets('Setting canRequestFocus=false for all siblings does not cause focus violation', (
+      WidgetTester tester,
+    ) async {
+      final List<FocusNode> focusNodes = List.generate(10, (_) => FocusNode());
+      addTearDown(() {
+        for (final node in focusNodes) {
+          node.dispose();
+        }
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ElevatedButton(onPressed: () {}, child: const Text('Toggle')),
+                  ...List.generate(
+                    10,
+                    (i) => Focus(
+                      focusNode: focusNodes[i],
+                      canRequestFocus: true,
+                      child: Container(
+                        color: focusNodes[i].hasPrimaryFocus ? Colors.blue : Colors.white,
+                        height: 50,
+                        child: Text('Button $i'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      focusNodes[1].requestFocus();
+      await tester.pump();
+      expect(focusNodes[1].hasPrimaryFocus, true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ElevatedButton(onPressed: () {}, child: const Text('Toggle')),
+                  ...List.generate(
+                    10,
+                    (i) => Focus(
+                      focusNode: focusNodes[i],
+                      canRequestFocus: false,
+                      child: Container(
+                        color: focusNodes[i].hasPrimaryFocus ? Colors.blue : Colors.white,
+                        height: 50,
+                        child: Text('Button $i'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < 10; i++) {
+        expect(focusNodes[i].hasPrimaryFocus, false);
+      }
+    });
+
+    testWidgets('Invariant: unfocusable nodes never have primary focus', (
+      WidgetTester tester,
+    ) async {
+      // Core invariant test: if canRequestFocus=false, then hasPrimaryFocus must be false
+
+      final node1 = FocusNode(debugLabel: 'node1');
+      addTearDown(node1.dispose);
+      final node2 = FocusNode(debugLabel: 'node2');
+      addTearDown(node2.dispose);
+      final node3 = FocusNode(debugLabel: 'node3');
+      addTearDown(node3.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                Focus(
+                  focusNode: node1,
+                  canRequestFocus: true,
+                  child: const SizedBox(height: 50, child: Text('Button 1')),
+                ),
+                Focus(
+                  focusNode: node2,
+                  canRequestFocus: false,
+                  child: const SizedBox(height: 50, child: Text('Button 2')),
+                ),
+                Focus(
+                  focusNode: node3,
+                  canRequestFocus: true,
+                  child: const SizedBox(height: 50, child: Text('Button 3')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Try to focus the unfocusable node
+      node2.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(
+        node2.hasPrimaryFocus,
+        false,
+        reason: 'Unfocusable node should not have primary focus',
+      );
+
+      // Verify invariant holds for all nodes
+      for (final node in [node1, node2, node3]) {
+        if (node.hasPrimaryFocus) {
+          expect(
+            node.canRequestFocus,
+            true,
+            reason: 'Invariant: if hasPrimaryFocus, then canRequestFocus must be true',
+          );
+        }
+      }
+    });
+
+    testWidgets('Microtask deferral prevents focus violation during batch disable', (
+      WidgetTester tester,
+    ) async {
+      final List<FocusNode> focusNodes = List.generate(5, (_) => FocusNode());
+      addTearDown(() {
+        for (final node in focusNodes) {
+          node.dispose();
+        }
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: List.generate(
+                5,
+                (i) => Focus(
+                  focusNode: focusNodes[i],
+                  canRequestFocus: true,
+                  child: SizedBox(height: 50, child: Text('Button $i')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      focusNodes[2].requestFocus();
+      await tester.pump();
+      expect(focusNodes[2].hasPrimaryFocus, true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: List.generate(
+                5,
+                (i) => Focus(
+                  focusNode: focusNodes[i],
+                  canRequestFocus: false,
+                  child: SizedBox(height: 50, child: Text('Button $i')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < 5; i++) {
+        expect(focusNodes[i].hasPrimaryFocus, false);
+      }
+    });
+
+    testWidgets('canRequestFocus setter safety checks prevent re-unfocus', (
+      WidgetTester tester,
+    ) async {
+      final node1 = FocusNode(debugLabel: 'node1');
+      addTearDown(node1.dispose);
+      final node2 = FocusNode(debugLabel: 'node2');
+      addTearDown(node2.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                Focus(
+                  focusNode: node1,
+                  canRequestFocus: true,
+                  child: const SizedBox(height: 50, child: Text('Button 1')),
+                ),
+                Focus(
+                  focusNode: node2,
+                  canRequestFocus: true,
+                  child: const SizedBox(height: 50, child: Text('Button 2')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      node1.requestFocus();
+      await tester.pump();
+      expect(node1.hasPrimaryFocus, true);
+
+      node1.canRequestFocus = false;
+      node2.requestFocus();
+      await tester.pumpAndSettle();
+
+      expect(node2.hasPrimaryFocus, true);
+      expect(node1.hasPrimaryFocus, false);
+      expect(node1.canRequestFocus, false);
     });
   });
 
