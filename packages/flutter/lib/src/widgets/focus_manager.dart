@@ -544,7 +544,15 @@ class FocusNode with DiagnosticableTreeMixin, ChangeNotifier {
       // unfocusable, previously-focused children.
       _canRequestFocus = value;
       if (hasFocus && !value) {
-        unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
+        // Schedule unfocus to run in a microtask. This ensures that when unfocus()
+        // runs, all widget canRequestFocus setters have completed, so we won't
+        // accidentally focus a widget that will soon have canRequestFocus=false.
+        final FocusNode nodeToUnfocus = this;
+        scheduleMicrotask(() {
+          if (nodeToUnfocus.hasFocus && !nodeToUnfocus.canRequestFocus) {
+            nodeToUnfocus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
+          }
+        });
       }
       _manager?._markPropertiesChanged(this);
     }

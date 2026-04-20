@@ -331,6 +331,9 @@ abstract class FocusTraversalPolicy with Diagnosticable {
   }) {
     final FocusScopeNode scope = currentNode.nearestScope!;
     FocusNode? candidate = scope.focusedChild;
+    if (candidate != null && !_canRequestTraversalFocus(candidate)) {
+      candidate = null;
+    }
     if (ignoreCurrentFocus || candidate == null && scope.descendants.isNotEmpty) {
       final Iterable<FocusNode> sorted = _sortAllDescendants(
         scope,
@@ -344,7 +347,10 @@ abstract class FocusTraversalPolicy with Diagnosticable {
     }
 
     // If we still didn't find any candidate, use the current node as a
-    // fallback.
+    // fallback, but only if it can request focus.
+    if (!_canRequestTraversalFocus(currentNode)) {
+      candidate = null;
+    }
     candidate ??= currentNode;
     return candidate;
   }
