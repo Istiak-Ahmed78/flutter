@@ -19,6 +19,17 @@ export 'dart:convert' hide Utf8Codec, Utf8Decoder, utf8;
 @visibleForTesting
 const Encoding utf8ForTesting = cnv.utf8;
 
+/// A [Codec] which permits malformed UTF-8 bytes when decoding.
+///
+/// This decoder is used for displaying application logs and tool output
+/// where invalid UTF-8 is expected (e.g., from external devices, network
+/// APIs, or debugging output). Invalid UTF-8 sequences will be decoded
+/// to replacement characters (U+FFFD) without warnings.
+///
+/// For critical tool data parsing (configs, manifests), use the strict
+/// [utf8] decoder instead, which will warn about malformed bytes.
+const Encoding utf8AllowMalformed = Utf8Codec(reportErrors: false);
+
 /// A [Codec] which reports malformed bytes when decoding.
 ///
 /// Occasionally people end up in a situation where we try to decode bytes
@@ -41,6 +52,14 @@ class Utf8Codec extends Encoding {
   String get name => cnv.utf8.name;
 }
 
+/// A strict UTF-8 decoder for critical tool data parsing.
+///
+/// This decoder reports warnings when encountering invalid UTF-8 sequences
+/// (replacement character U+FFFD). It should be used for parsing tool-critical
+/// data such as configuration files, manifests, and build metadata.
+///
+/// For displaying application logs and external tool output with potential
+/// encoding issues, use [utf8AllowMalformed] instead.
 const Encoding utf8 = Utf8Codec();
 
 class Utf8Decoder extends Converter<List<int>, String> {
