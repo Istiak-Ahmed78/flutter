@@ -348,7 +348,7 @@ abstract class FocusTraversalPolicy with Diagnosticable {
 
     // If we still didn't find any candidate, use the current node as a
     // fallback, but only if it can request focus.
-    if (candidate == null && !_canRequestTraversalFocus(currentNode)) {
+    if (candidate == null && _canRequestTraversalFocus(currentNode)) {
       return currentNode;
     }
     candidate ??= currentNode;
