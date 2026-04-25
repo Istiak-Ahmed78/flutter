@@ -551,8 +551,7 @@ class FocusNode with DiagnosticableTreeMixin, ChangeNotifier {
         scheduleMicrotask(() {
           if (nodeToUnfocus.hasFocus &&
               !nodeToUnfocus.canRequestFocus &&
-              nodeToUnfocus._manager != null &&
-              nodeToUnfocus._parent != null) {
+              (nodeToUnfocus._attachment?.isAttached ?? false)) {
             nodeToUnfocus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
           }
         });
