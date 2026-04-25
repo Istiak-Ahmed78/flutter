@@ -5271,10 +5271,6 @@ class EditableTextState extends State<EditableText>
 
   @override
   TextInputConfiguration get textInputConfiguration {
-    print(
-      '[DEBUG_TEXTINPUT_ACTION] textInputConfiguration - inputAction: ${widget.textInputAction}',
-    );
-
     final List<String>? autofillHints = widget.autofillHints?.toList(growable: false);
     final AutofillConfiguration autofillConfiguration = autofillHints != null
         ? AutofillConfiguration(
