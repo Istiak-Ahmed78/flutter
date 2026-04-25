@@ -2377,95 +2377,66 @@ void main() {
       debugPrint = oldDebugPrint;
     }
   });
-group('FocusNode.canRequestFocus regression tests', () {
+  group('FocusNode.canRequestFocus regression tests', () {
     testWidgets('Setting canRequestFocus=false for all siblings does not cause focus violation', (
       WidgetTester tester,
     ) async {
       final List<FocusNode> focusNodes = List.generate(10, (_) => FocusNode());
-      addTearDown(() {
-        for (final node in focusNodes) {
-          node.dispose();
-        }
-      });
+
+      var canRequestFocus = true;
+      late StateSetter setState;
 
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
           child: MediaQuery(
             data: const MediaQueryData(),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      color: const Color(0xFFE0E0E0),
-                      padding: const EdgeInsets.all(8),
-                      child: const Text('Toggle'),
-                    ),
-                  ),
-                  ...List.generate(
-                    10,
-                    (i) => Focus(
-                      focusNode: focusNodes[i],
-                      canRequestFocus: true,
-                      child: Container(
-                        color: focusNodes[i].hasPrimaryFocus
-                            ? const Color(0xFF2196F3)
-                            : const Color(0xFFFFFFFF),
-                        height: 50,
-                        child: Text('Button $i'),
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setter) {
+                setState = setter;
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          color: const Color(0xFFE0E0E0),
+                          padding: const EdgeInsets.all(8),
+                          child: const Text('Toggle'),
+                        ),
                       ),
-                    ),
+                      ...List.generate(
+                        10,
+                        (i) => Focus(
+                          focusNode: focusNodes[i],
+                          canRequestFocus: canRequestFocus,
+                          child: Container(
+                            color: focusNodes[i].hasPrimaryFocus
+                                ? const Color(0xFF2196F3)
+                                : const Color(0xFFFFFFFF),
+                            height: 50,
+                            child: Text('Button $i'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
       );
 
+      // Scenario 1: canRequestFocus = true
       focusNodes[1].requestFocus();
       await tester.pump();
       expect(focusNodes[1].hasPrimaryFocus, true);
 
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      color: const Color(0xFFE0E0E0),
-                      padding: const EdgeInsets.all(8),
-                      child: const Text('Toggle'),
-                    ),
-                  ),
-                  ...List.generate(
-                    10,
-                    (i) => Focus(
-                      focusNode: focusNodes[i],
-                      canRequestFocus: false,
-                      child: Container(
-                        color: focusNodes[i].hasPrimaryFocus
-                            ? const Color(0xFF2196F3)
-                            : const Color(0xFFFFFFFF),
-                        height: 50,
-                        child: Text('Button $i'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
+      // Scenario 2: canRequestFocus = false
+      setState(() {
+        canRequestFocus = false;
+      });
       await tester.pumpAndSettle();
 
       for (var i = 0; i < 10; i++) {
@@ -2542,69 +2513,53 @@ group('FocusNode.canRequestFocus regression tests', () {
         }
       }
     });
-
     testWidgets('Microtask deferral prevents focus violation during batch disable', (
       WidgetTester tester,
     ) async {
       final List<FocusNode> focusNodes = List.generate(5, (_) => FocusNode());
-      addTearDown(() {
-        for (final node in focusNodes) {
-          node.dispose();
-        }
-      });
+
+      var canRequestFocus = true;
+      late StateSetter setState;
 
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
           child: MediaQuery(
             data: const MediaQueryData(),
-            child: Column(
-              children: List.generate(
-                5,
-                (i) => Focus(
-                  focusNode: focusNodes[i],
-                  canRequestFocus: true,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: Text('Button $i'),
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setter) {
+                setState = setter;
+                return Column(
+                  children: List.generate(
+                    5,
+                    (i) => Focus(
+                      focusNode: focusNodes[i],
+                      canRequestFocus: canRequestFocus,
+                      child: Container(
+                        height: 50,
+                        color: const Color(0xFFFFFFFF),
+                        child: Text('Button $i'),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
       );
 
+      // Test scenario 1: canRequestFocus = true
       focusNodes[2].requestFocus();
       await tester.pump();
       expect(focusNodes[2].hasPrimaryFocus, true);
 
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: Column(
-              children: List.generate(
-                5,
-                (i) => Focus(
-                  focusNode: focusNodes[i],
-                  canRequestFocus: false,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: Text('Button $i'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
+      setState(() {
+        canRequestFocus = false;
+      });
       await tester.pumpAndSettle();
 
+      // Test scenario 2: canRequestFocus = false
       for (var i = 0; i < 5; i++) {
         expect(focusNodes[i].hasPrimaryFocus, false);
       }
