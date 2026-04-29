@@ -320,11 +320,11 @@ abstract class FocusTraversalPolicy with Diagnosticable {
   ///  * [previous], the function that is called to move the focus to the previous node.
   ///  * [DirectionalFocusTraversalPolicyMixin.findFirstFocusInDirection], a
   ///    function that finds the first focusable widget in a particular direction.
-  FocusNode findLastFocus(FocusNode currentNode, {bool ignoreCurrentFocus = false}) {
+  FocusNode? findLastFocus(FocusNode currentNode, {bool ignoreCurrentFocus = false}) {
     return _findInitialFocus(currentNode, fromEnd: true, ignoreCurrentFocus: ignoreCurrentFocus);
   }
 
-  FocusNode _findInitialFocus(
+  FocusNode? _findInitialFocus(
     FocusNode currentNode, {
     bool fromEnd = false,
     bool ignoreCurrentFocus = false,
@@ -346,12 +346,14 @@ abstract class FocusTraversalPolicy with Diagnosticable {
       }
     }
 
-    // If we still didn't find any candidate, use the current node as a
-    // fallback, but only if it can request focus.
-    if (candidate == null && _canRequestTraversalFocus(currentNode)) {
-      return currentNode;
+    if (candidate == null) {
+      if (_canRequestTraversalFocus(currentNode)) {
+        return currentNode;
+      } else {
+        return null;
+      }
     }
-    candidate ??= currentNode;
+
     return candidate;
   }
 
