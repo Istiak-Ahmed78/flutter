@@ -5,6 +5,7 @@
 package io.flutter.embedding.android;
 
 import android.view.InputDevice;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -66,6 +67,26 @@ public class KeyEmbedderResponder implements KeyboardManager.Responder {
   private static long keyOfPlane(long key, long plane) {
     // Apply '& kValueMask' in case the key is a negative number before being converted to long.
     return plane | (key & KeyboardMap.kValueMask);
+  }
+
+  private static boolean isVirtualKeyboardEvent(@NonNull KeyEvent event) {
+    return event.getDeviceId() == KeyCharacterMap.VIRTUAL_KEYBOARD;
+  }
+
+  private static boolean shouldSynthesizeVirtualModifier(
+      @NonNull PressingGoal goal, @NonNull KeyEvent event) {
+    if (goal.mask != KeyEvent.META_SHIFT_ON) {
+      return false;
+    }
+    switch (event.getKeyCode()) {
+      case KeyEvent.KEYCODE_DPAD_LEFT:
+      case KeyEvent.KEYCODE_DPAD_RIGHT:
+      case KeyEvent.KEYCODE_DPAD_UP:
+      case KeyEvent.KEYCODE_DPAD_DOWN:
+        return true;
+      default:
+        return false;
+    }
   }
 
   // Get the physical key for this event.
@@ -197,8 +218,8 @@ public class KeyEmbedderResponder implements KeyboardManager.Responder {
     // Virtual keyboards (like Gboard) often keep meta bits active without sending
     // corresponding physical key events. For these, we trust the meta state
     // and skip synthesizing physical modifier keys to avoid "stuck" modifiers.
-    boolean isVirtualKeyboard =
-        event.getDeviceId() == android.view.KeyCharacterMap.VIRTUAL_KEYBOARD;
+    final boolean skipVirtualSynthesis =
+        isVirtualKeyboardEvent(event) && !shouldSynthesizeVirtualModifier(goal, event);
 
     // Fill the rest of the pre-event states to match the true state.
     if (truePressed) {
@@ -207,14 +228,14 @@ public class KeyEmbedderResponder implements KeyboardManager.Responder {
         if (preEventStates[keyIdx] != null) {
           continue;
         }
-        if (postEventAnyPressed || isVirtualKeyboard) {
+        if (postEventAnyPressed || skipVirtualSynthesis) {
           preEventStates[keyIdx] = nowStates[keyIdx];
         } else {
           preEventStates[keyIdx] = true;
           postEventAnyPressed = true;
         }
       }
-      if (!postEventAnyPressed && !isVirtualKeyboard) {
+      if (!postEventAnyPressed && !skipVirtualSynthesis) {
         preEventStates[0] = true;
       }
     } else {

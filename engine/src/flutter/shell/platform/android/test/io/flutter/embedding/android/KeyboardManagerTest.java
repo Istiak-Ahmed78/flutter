@@ -894,6 +894,70 @@ public class KeyboardManagerTest {
   }
 
   @Test
+  public void virtualKeyboardShiftArrowStillSynthesizesShift() {
+    final KeyboardTester tester = new KeyboardTester();
+    final ArrayList<CallRecord> calls = new ArrayList<>();
+
+    tester.recordEmbedderCallsTo(calls);
+    tester.respondToTextInputWith(true); // Suppress redispatching
+
+    final long virtualArrowLeftPhysicalKey = KEYCODE_DPAD_LEFT | KeyboardMap.kAndroidPlane;
+
+    // Gboard "select" mode sends Shift in metaState while dispatching virtual arrow keys.
+    assertTrue(
+        tester.keyboardManager.handleEvent(
+            new FakeKeyEvent(
+                ACTION_DOWN,
+                0,
+                KEYCODE_DPAD_LEFT,
+                0,
+                '\0',
+                META_SHIFT_ON,
+                KeyCharacterMap.VIRTUAL_KEYBOARD,
+                0)));
+    verifyEmbedderEvents(
+        calls,
+        new KeyData[] {
+          buildKeyData(
+              Type.kDown, PHYSICAL_SHIFT_LEFT, LOGICAL_SHIFT_LEFT, null, true, DeviceType.kKeyboard),
+          buildKeyData(
+              Type.kDown,
+              virtualArrowLeftPhysicalKey,
+              LOGICAL_ARROW_LEFT,
+              null,
+              false,
+              DeviceType.kKeyboard),
+        });
+    calls.clear();
+
+    assertTrue(
+        tester.keyboardManager.handleEvent(
+            new FakeKeyEvent(
+                ACTION_UP,
+                0,
+                KEYCODE_DPAD_LEFT,
+                0,
+                '\0',
+                0,
+                KeyCharacterMap.VIRTUAL_KEYBOARD,
+                0)));
+    verifyEmbedderEvents(
+        calls,
+        new KeyData[] {
+          buildKeyData(
+              Type.kUp, PHYSICAL_SHIFT_LEFT, LOGICAL_SHIFT_LEFT, null, true, DeviceType.kKeyboard),
+          buildKeyData(
+              Type.kUp,
+              virtualArrowLeftPhysicalKey,
+              LOGICAL_ARROW_LEFT,
+              null,
+              false,
+              DeviceType.kKeyboard),
+        });
+    calls.clear();
+  }
+
+  @Test
   public void tapUpperA() {
     final KeyboardTester tester = new KeyboardTester();
     final ArrayList<CallRecord> calls = new ArrayList<>();
