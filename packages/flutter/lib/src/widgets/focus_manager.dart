@@ -544,17 +544,7 @@ class FocusNode with DiagnosticableTreeMixin, ChangeNotifier {
       // unfocusable, previously-focused children.
       _canRequestFocus = value;
       if (hasFocus && !value) {
-        // Schedule unfocus to run in a microtask. This ensures that when unfocus()
-        // runs, all widget canRequestFocus setters have completed, so we won't
-        // accidentally focus a widget that will soon have canRequestFocus=false.
-        final nodeToUnfocus = this;
-        scheduleMicrotask(() {
-          if (nodeToUnfocus.hasFocus &&
-              !nodeToUnfocus.canRequestFocus &&
-              (nodeToUnfocus._attachment?.isAttached ?? false)) {
-            nodeToUnfocus.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
-          }
-        });
+        unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
       }
       _manager?._markPropertiesChanged(this);
     }
@@ -1978,18 +1968,51 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
       _markedForFocus = rootScope;
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
-    // A node has requested to be the next focus, and isn't already the primary
-    // focus.
-    if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
-      final Set<FocusNode> previousPath = previousFocus?.ancestors.toSet() ?? <FocusNode>{};
-      final Set<FocusNode> nextPath = _markedForFocus!.ancestors.toSet();
-      // Notify nodes that are newly focused.
-      _dirtyNodes.addAll(nextPath.difference(previousPath));
-      // Notify nodes that are no longer focused
-      _dirtyNodes.addAll(previousPath.difference(nextPath));
 
-      _primaryFocus = _markedForFocus;
-      _markedForFocus = null;
+    // A node has requested to be the next focus, and isn't already the primary focus.
+    if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
+      // This is necessary because this method is called via microtask,
+      // and canRequestFocus might have changed since the focus was marked.
+      if (!_markedForFocus!.canRequestFocus) {
+        // Clear the marked node since it can't be focused
+        _markedForFocus = null;
+        // Try to restore focus to previous focus if it's still focusable
+        if (previousFocus != null && previousFocus.canRequestFocus) {
+          _markedForFocus = previousFocus;
+        } else {
+          // Use the framework's built-in method to find first focusable node
+          // This reuses existing traversal logic instead of reimplementing
+          final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
+          FocusNode? fallbackFocus;
+
+          if (scope.descendants.isNotEmpty) {
+            // Get all traversable descendants (already filters by canRequestFocus)
+            final Iterable<FocusNode> traversalDescendants = scope.traversalDescendants;
+            if (traversalDescendants.isNotEmpty) {
+              fallbackFocus = traversalDescendants.first;
+            }
+          }
+
+          if (fallbackFocus != null) {
+            _markedForFocus = fallbackFocus;
+          } else {
+            // Last resort: use root scope
+            _markedForFocus = rootScope;
+          }
+        }
+      }
+
+      if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
+        final Set<FocusNode> previousPath = previousFocus?.ancestors.toSet() ?? <FocusNode>{};
+        final Set<FocusNode> nextPath = _markedForFocus!.ancestors.toSet();
+        // Notify nodes that are newly focused.
+        _dirtyNodes.addAll(nextPath.difference(previousPath));
+        // Notify nodes that are no longer focused
+        _dirtyNodes.addAll(previousPath.difference(nextPath));
+
+        _primaryFocus = _markedForFocus;
+        _markedForFocus = null;
+      }
     }
     assert(_markedForFocus == null);
     if (previousFocus != _primaryFocus) {
