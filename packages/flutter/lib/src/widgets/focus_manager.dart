@@ -1963,7 +1963,8 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     _pendingAutofocuses.clear();
 
     if (_primaryFocus == null && _markedForFocus == null) {
-      // We will send the focus to the [rootScope] if nobody has asked to focus yet
+      // If we don't have any current focus, and nobody has asked to focus yet,
+      // then revert to the root scope.
       _markedForFocus = rootScope;
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
