@@ -1979,14 +1979,14 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
         if (previousFocus != null && previousFocus.canRequestFocus) {
           _markedForFocus = previousFocus;
         } else {
-          // Use the framework's built-in method to find first focusable node
-          // If [_markedForFocus] is no more focustable, we may try to give the focus
-          // to nearest focus
+          // If [_markedForFocus] is no more focusable, we try to find an alternative
+          // focusable node within the nearest scope
           final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
           FocusNode? fallbackFocus;
 
           if (scope.descendants.isNotEmpty) {
             // Get all traversable descendants, and give the focus to the first one if found any
+            // Note: [traversalDescendants] filters [canRequestFocus]
             final Iterable<FocusNode> traversalDescendants = scope.traversalDescendants;
             if (traversalDescendants.isNotEmpty) {
               fallbackFocus = traversalDescendants.first;
