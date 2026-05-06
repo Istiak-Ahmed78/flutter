@@ -1963,16 +1963,14 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     _pendingAutofocuses.clear();
 
     if (_primaryFocus == null && _markedForFocus == null) {
-      // If we don't have any current focus, and nobody has asked to focus yet,
-      // then revert to the root scope.
+      // We will send the focus to the [rootScope] if nobody has asked to focus yet
       _markedForFocus = rootScope;
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
 
     // A node has requested to be the next focus, and isn't already the primary focus.
     if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
-      // This is necessary because this method is called via microtask,
-      // and canRequestFocus might have changed since the focus was marked.
+      // [canRequestFocus] for [_markedForFocus] might have changed during the execution of the microtask since the focus was marked.
       if (!_markedForFocus!.canRequestFocus) {
         // Clear the marked node since it can't be focused
         _markedForFocus = null;
@@ -1981,12 +1979,13 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
           _markedForFocus = previousFocus;
         } else {
           // Use the framework's built-in method to find first focusable node
-          // This reuses existing traversal logic instead of reimplementing
+          // If [_markedForFocus] is no more focustable, we may try to give the focus
+          // to nearest focus
           final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
           FocusNode? fallbackFocus;
 
           if (scope.descendants.isNotEmpty) {
-            // Get all traversable descendants (already filters by canRequestFocus)
+            // Get all traversable descendants, and give the focus to the first one if found any
             final Iterable<FocusNode> traversalDescendants = scope.traversalDescendants;
             if (traversalDescendants.isNotEmpty) {
               fallbackFocus = traversalDescendants.first;
@@ -1996,7 +1995,7 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
           if (fallbackFocus != null) {
             _markedForFocus = fallbackFocus;
           } else {
-            // Last resort: use root scope
+            // Restore the focus to [rootScope] as a safe and last option
             _markedForFocus = rootScope;
           }
         }
