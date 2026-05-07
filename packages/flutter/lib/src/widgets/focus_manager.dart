@@ -1962,58 +1962,33 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }
     _pendingAutofocuses.clear();
 
+    // Default to root scope if nothing is focused
     if (_primaryFocus == null && _markedForFocus == null) {
-      // If we don't have any current focus, and nobody has asked to focus yet,
-      // then revert to the root scope.
       _markedForFocus = rootScope;
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
 
-    // A node has requested to be the next focus, and isn't already the primary focus.
-    if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
-      // [canRequestFocus] for [_markedForFocus] might have changed during the execution of the microtask since the focus was marked.
-      if (!_markedForFocus!.canRequestFocus) {
-        // Clear the marked node since it can't be focused
-        _markedForFocus = null;
-        // Try to restore focus to previous focus if it's still focusable
-        if (previousFocus != null && previousFocus.canRequestFocus) {
-          _markedForFocus = previousFocus;
-        } else {
-          // If [_markedForFocus] is no more focusable, we try to find an alternative
-          // focusable node within the nearest scope
-          final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
-          FocusNode? fallbackFocus;
-
-          if (scope.descendants.isNotEmpty) {
-            // Get all traversable descendants, and give the focus to the first one if found any
-            // Note: [traversalDescendants] filters [canRequestFocus]
-            final Iterable<FocusNode> traversalDescendants = scope.traversalDescendants;
-            if (traversalDescendants.isNotEmpty) {
-              fallbackFocus = traversalDescendants.first;
-            }
-          }
-
-          if (fallbackFocus != null) {
-            _markedForFocus = fallbackFocus;
-          } else {
-            // Restore the focus to [rootScope] as a safe and last option
-            _markedForFocus = rootScope;
-          }
-        }
-      }
-
-      if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
-        final Set<FocusNode> previousPath = previousFocus?.ancestors.toSet() ?? <FocusNode>{};
-        final Set<FocusNode> nextPath = _markedForFocus!.ancestors.toSet();
-        // Notify nodes that are newly focused.
-        _dirtyNodes.addAll(nextPath.difference(previousPath));
-        // Notify nodes that are no longer focused
-        _dirtyNodes.addAll(previousPath.difference(nextPath));
-
-        _primaryFocus = _markedForFocus;
-        _markedForFocus = null;
-      }
+    // A non-primary node requested focus, but it can no longer receive focus.
+    // Find an alternative focusable node.
+    if (_markedForFocus != null &&
+        _markedForFocus != _primaryFocus &&
+        !_markedForFocus!.canRequestFocus) {
+      _markedForFocus = _findValidFocusOrFallback(previousFocus);
     }
+
+    // Handle the requested non-primary focus if focusable
+    if (_markedForFocus != null && _markedForFocus != _primaryFocus) {
+      final Set<FocusNode> previousPath = previousFocus?.ancestors.toSet() ?? <FocusNode>{};
+      final Set<FocusNode> nextPath = _markedForFocus!.ancestors.toSet();
+      // Notify nodes that are newly focused.
+      _dirtyNodes.addAll(nextPath.difference(previousPath));
+      // Notify nodes that are no longer focused
+      _dirtyNodes.addAll(previousPath.difference(nextPath));
+
+      _primaryFocus = _markedForFocus;
+      _markedForFocus = null;
+    }
+
     assert(_markedForFocus == null);
     if (previousFocus != _primaryFocus) {
       assert(_focusDebug(() => 'Updating focus from $previousFocus to $_primaryFocus'));
@@ -2038,6 +2013,34 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
       }
       return true;
     }());
+  }
+
+  /// Finds a valid focusable node or returns a fallback focus.
+  ///
+  /// This method is called when [_markedForFocus] is set to a node that cannot
+  /// request focus. It attempts to find an alternative focusable node.
+  FocusNode _findValidFocusOrFallback(FocusNode? previousFocus) {
+    // Try to restore focus to previous focus if it's still focusable
+    if (previousFocus != null && previousFocus.canRequestFocus) {
+      return previousFocus;
+    }
+
+    // If [_markedForFocus] is no more focusable, try to find an alternative
+    // focusable node within the nearest scope
+    final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
+    FocusNode? fallbackFocus;
+
+    if (scope.descendants.isNotEmpty) {
+      // Get all traversable descendants, and give the focus to the first one if found any
+      // [traversalDescendants] filters [canRequestFocus]
+      final Iterable<FocusNode> traversalDescendants = scope.traversalDescendants;
+      if (traversalDescendants.isNotEmpty) {
+        fallbackFocus = traversalDescendants.first;
+      }
+    }
+
+    // Return fallback focus or restore to [rootScope] as a safe and last option
+    return fallbackFocus ?? rootScope;
   }
 
   /// Enables this [FocusManager] to listen to changes of the application
