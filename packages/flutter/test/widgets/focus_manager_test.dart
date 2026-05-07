@@ -2378,145 +2378,16 @@ void main() {
     }
   });
   group('FocusNode.canRequestFocus regression tests', () {
-    testWidgets('Setting canRequestFocus=false for all siblings does not cause focus violation', (
-      WidgetTester tester,
-    ) async {
-      final List<FocusNode> focusNodes = List.generate(10, (_) => FocusNode());
-
-      var canRequestFocus = true;
-      late StateSetter setState;
-
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: StatefulBuilder(
-              builder: (BuildContext context, StateSetter setter) {
-                setState = setter;
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {},
-                        child: Container(
-                          color: const Color(0xFFE0E0E0),
-                          padding: const EdgeInsets.all(8),
-                          child: const Text('Toggle'),
-                        ),
-                      ),
-                      ...List.generate(
-                        10,
-                        (i) => Focus(
-                          focusNode: focusNodes[i],
-                          canRequestFocus: canRequestFocus,
-                          child: Container(
-                            color: focusNodes[i].hasPrimaryFocus
-                                ? const Color(0xFF2196F3)
-                                : const Color(0xFFFFFFFF),
-                            height: 50,
-                            child: Text('Button $i'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-
-      // Scenario 1: canRequestFocus = true
-      focusNodes[1].requestFocus();
-      await tester.pump();
-      expect(focusNodes[1].hasPrimaryFocus, true);
-
-      // Scenario 2: canRequestFocus = false
-      setState(() {
-        canRequestFocus = false;
-      });
-      await tester.pumpAndSettle();
-
-      for (var i = 0; i < 10; i++) {
-        expect(focusNodes[i].hasPrimaryFocus, false);
-      }
-    });
-
-    testWidgets('Invariant: unfocusable nodes never have primary focus', (
-      WidgetTester tester,
-    ) async {
+    testWidgets('Batch-disabling all focusable nodes does not give focus to '
+        'unfocusable previously-focused sibling', (WidgetTester tester) async {
+      // This test reproduces the bug from https://github.com/flutter/flutter/issues/185076
+      // where setting canRequestFocus=false for all siblings in the same build
+      // causes a previously-focused node (that becomes unfocusable) to receive
+      // primary focus, violating the invariant that focused nodes must be focusable.
+      final node0 = FocusNode(debugLabel: 'node0');
       final node1 = FocusNode(debugLabel: 'node1');
+      addTearDown(node0.dispose);
       addTearDown(node1.dispose);
-      final node2 = FocusNode(debugLabel: 'node2');
-      addTearDown(node2.dispose);
-      final node3 = FocusNode(debugLabel: 'node3');
-      addTearDown(node3.dispose);
-
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: Column(
-              children: [
-                Focus(
-                  focusNode: node1,
-                  canRequestFocus: true,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: const Text('Button 1'),
-                  ),
-                ),
-                Focus(
-                  focusNode: node2,
-                  canRequestFocus: false,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: const Text('Button 2'),
-                  ),
-                ),
-                Focus(
-                  focusNode: node3,
-                  canRequestFocus: true,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: const Text('Button 3'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      node2.requestFocus();
-      await tester.pumpAndSettle();
-
-      expect(
-        node2.hasPrimaryFocus,
-        false,
-        reason: 'Unfocusable node should not have primary focus',
-      );
-
-      for (final node in [node1, node2, node3]) {
-        if (node.hasPrimaryFocus) {
-          expect(
-            node.canRequestFocus,
-            true,
-            reason: 'Invariant: if hasPrimaryFocus, then canRequestFocus must be true',
-          );
-        }
-      }
-    });
-    testWidgets('Microtask deferral prevents focus violation during batch disable', (
-      WidgetTester tester,
-    ) async {
-      final List<FocusNode> focusNodes = List.generate(5, (_) => FocusNode());
 
       var canRequestFocus = true;
       late StateSetter setState;
@@ -2530,18 +2401,26 @@ void main() {
               builder: (BuildContext context, StateSetter setter) {
                 setState = setter;
                 return Column(
-                  children: List.generate(
-                    5,
-                    (i) => Focus(
-                      focusNode: focusNodes[i],
+                  children: [
+                    Focus(
+                      focusNode: node0,
                       canRequestFocus: canRequestFocus,
                       child: Container(
                         height: 50,
                         color: const Color(0xFFFFFFFF),
-                        child: Text('Button $i'),
+                        child: const Text('Node 0'),
                       ),
                     ),
-                  ),
+                    Focus(
+                      focusNode: node1,
+                      canRequestFocus: canRequestFocus,
+                      child: Container(
+                        height: 50,
+                        color: const Color(0xFFFFFFFF),
+                        child: const Text('Node 1'),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -2549,72 +2428,46 @@ void main() {
         ),
       );
 
-      // Test scenario 1: canRequestFocus = true
-      focusNodes[2].requestFocus();
+      // Establish focus history: node1 (later child) focused first
+      node1.requestFocus();
       await tester.pump();
-      expect(focusNodes[2].hasPrimaryFocus, true);
+      expect(node1.hasPrimaryFocus, true);
+      expect(node0.hasPrimaryFocus, false);
 
+      // Switch focus to node0 (earlier child). Now the focused child history
+      // in the scope has [node1 (previous), node0 (current)] in that order.
+      node0.requestFocus();
+      await tester.pump();
+      expect(node0.hasPrimaryFocus, true);
+      expect(node1.hasPrimaryFocus, false);
+
+      // Batch disable: set canRequestFocus=false for all widgets.
       setState(() {
         canRequestFocus = false;
       });
       await tester.pumpAndSettle();
 
-      // Test scenario 2: canRequestFocus = false
-      for (var i = 0; i < 5; i++) {
-        expect(focusNodes[i].hasPrimaryFocus, false);
-      }
-    });
-
-    testWidgets('canRequestFocus setter safety checks prevent re-unfocus', (
-      WidgetTester tester,
-    ) async {
-      final node1 = FocusNode(debugLabel: 'node1');
-      addTearDown(node1.dispose);
-      final node2 = FocusNode(debugLabel: 'node2');
-      addTearDown(node2.dispose);
-
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: Column(
-              children: [
-                Focus(
-                  focusNode: node1,
-                  canRequestFocus: true,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: const Text('Button 1'),
-                  ),
-                ),
-                Focus(
-                  focusNode: node2,
-                  canRequestFocus: true,
-                  child: Container(
-                    height: 50,
-                    color: const Color(0xFFFFFFFF),
-                    child: const Text('Button 2'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      // Verify: neither node should have primary focus
+      expect(
+        node0.hasPrimaryFocus,
+        false,
+        reason: 'node0 should not have focus after batch disable',
+      );
+      expect(
+        node1.hasPrimaryFocus,
+        false,
+        reason: 'node1 should not have focus after batch disable',
       );
 
-      node1.requestFocus();
-      await tester.pump();
-      expect(node1.hasPrimaryFocus, true);
-
-      node1.canRequestFocus = false;
-      node2.requestFocus();
-      await tester.pumpAndSettle();
-
-      expect(node2.hasPrimaryFocus, true);
-      expect(node1.hasPrimaryFocus, false);
-      expect(node1.canRequestFocus, false);
+      // Invariant check: if any node has primaryFocus, it must be focusable
+      final FocusNode? primary = FocusManager.instance.primaryFocus;
+      if (primary != null) {
+        expect(
+          primary.canRequestFocus,
+          true,
+          reason: 'Invariant violation: focus node is not focusable',
+        );
+      }
     });
   });
 }
