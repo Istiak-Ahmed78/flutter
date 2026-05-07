@@ -1962,13 +1962,14 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }
     _pendingAutofocuses.clear();
 
-    // Default to root scope if nothing is focused
     if (_primaryFocus == null && _markedForFocus == null) {
+      // If we don't have any current focus, and nobody has asked to focus yet,
+      // then revert to the root scope.
       _markedForFocus = rootScope;
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
 
-    // A non-primary node requested focus, but it can no longer receive focus.
+    // Handle when a focus requested to a non-primary node, but the node is no longer receive focusable.
     // Find an alternative focusable node.
     if (_markedForFocus != null &&
         _markedForFocus != _primaryFocus &&
@@ -1988,7 +1989,6 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
       _primaryFocus = _markedForFocus;
       _markedForFocus = null;
     }
-
     assert(_markedForFocus == null);
     if (previousFocus != _primaryFocus) {
       assert(_focusDebug(() => 'Updating focus from $previousFocus to $_primaryFocus'));
