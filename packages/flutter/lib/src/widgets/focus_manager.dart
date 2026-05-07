@@ -1969,7 +1969,7 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
 
-    // Handle when a focus requested to a non-primary node, but the node is no longer receive focusable.
+    // Handle when a focus requested to a non-primary node, but the node is no longer focusable.
     // Find an alternative focusable node.
     if (_markedForFocus != null &&
         _markedForFocus != _primaryFocus &&
