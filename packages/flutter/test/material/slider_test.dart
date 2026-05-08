@@ -5679,6 +5679,113 @@ void main() {
     );
     expect(tester.getSize(find.byType(Slider)), Size.zero);
   });
+
+  group('ScrollIntent support', () {
+    testWidgets('Slider can be incremented and decremented by keyboard shortcuts - LTR', (
+      WidgetTester tester,
+    ) async {
+      tester.binding.focusManager.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+      var currentValue = 0.5;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Center(
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  return Slider(
+                    value: currentValue,
+                    onChangeStart: (double newValue) {
+                      setState(() {});
+                    },
+                    onChanged: (double newValue) {
+                      setState(() {
+                        currentValue = newValue;
+                      });
+                    },
+                    onChangeEnd: (double newValue) {
+                      setState(() {});
+                    },
+                    autofocus: true,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Test right arrow
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(currentValue, greaterThan(0.5));
+
+      // Test left arrow
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(currentValue, 0.5);
+
+      // Test up arrow
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(currentValue, greaterThan(0.5));
+
+      // Test down arrow
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(currentValue, 0.5);
+    });
+
+    testWidgets('Slider can be incremented and decremented by keyboard shortcuts - RTL', (
+      WidgetTester tester,
+    ) async {
+      tester.binding.focusManager.highlightStrategy = FocusHighlightStrategy.alwaysTraditional;
+      var currentValue = 0.5;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Center(
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  return Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: Slider(
+                      value: currentValue,
+                      onChangeStart: (double newValue) {
+                        setState(() {});
+                      },
+                      onChanged: (double newValue) {
+                        setState(() {
+                          currentValue = newValue;
+                        });
+                      },
+                      onChangeEnd: (double newValue) {
+                        setState(() {});
+                      },
+                      autofocus: true,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // In RTL, right should decrease
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(currentValue, lessThan(0.5));
+
+      // In RTL, left should increase
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+      expect(currentValue, 0.5);
+    });
+  });
 }
 
 // A slider value indicator that's a circle with a fixed size and
