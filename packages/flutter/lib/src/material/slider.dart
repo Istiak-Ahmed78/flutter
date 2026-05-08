@@ -696,6 +696,7 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
     positionController.value = _convert(widget.value);
     _actionMap = <Type, Action<Intent>>{
       _AdjustSliderIntent: CallbackAction<_AdjustSliderIntent>(onInvoke: _actionHandler),
+      ScrollIntent: CallbackAction<ScrollIntent>(onInvoke: _handleScrollIntent),
     };
     if (widget.focusNode == null) {
       // Only create a new node if the widget doesn't have one.
@@ -712,6 +713,27 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
     positionController.dispose();
     _focusNode?.dispose();
     super.dispose();
+  }
+
+  void _handleScrollIntent(ScrollIntent intent) {
+    if (!_enabled) {
+      return;
+    }
+
+    final TextDirection directionality = Directionality.of(_renderObjectKey.currentContext!);
+
+    // Determine if we should increase or decrease based on scroll direction
+    // For horizontal scrolling: right increases (LTR) or left increases (RTL)
+    // For vertical scrolling: up increases, down decreases
+    final bool shouldIncrease = switch (intent.direction) {
+      AxisDirection.right => directionality == TextDirection.ltr,
+      AxisDirection.left => directionality == TextDirection.rtl,
+      AxisDirection.up => true,
+      AxisDirection.down => false,
+    };
+
+    final slider = _renderObjectKey.currentContext!.findRenderObject()! as _RenderSlider;
+    return shouldIncrease ? slider.increaseAction() : slider.decreaseAction();
   }
 
   void _handleChanged(double value) {
