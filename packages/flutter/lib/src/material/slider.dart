@@ -715,27 +715,6 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _handleScrollIntent(ScrollIntent intent) {
-    if (!_enabled) {
-      return;
-    }
-
-    final TextDirection directionality = Directionality.of(_renderObjectKey.currentContext!);
-
-    // Determine if we should increase or decrease based on scroll direction
-    // For horizontal scrolling: right increases (LTR) or left increases (RTL)
-    // For vertical scrolling: up increases, down decreases
-    final bool shouldIncrease = switch (intent.direction) {
-      AxisDirection.right => directionality == TextDirection.ltr,
-      AxisDirection.left => directionality == TextDirection.rtl,
-      AxisDirection.up => true,
-      AxisDirection.down => false,
-    };
-
-    final slider = _renderObjectKey.currentContext!.findRenderObject()! as _RenderSlider;
-    return shouldIncrease ? slider.increaseAction() : slider.decreaseAction();
-  }
-
   void _handleChanged(double value) {
     assert(widget.onChanged != null);
     final double lerpValue = _lerp(value);
@@ -763,17 +742,36 @@ class _SliderState extends State<Slider> with TickerProviderStateMixin {
   }
 
   void _actionHandler(_AdjustSliderIntent intent) {
-    final TextDirection directionality = Directionality.of(_renderObjectKey.currentContext!);
-    final bool shouldIncrease = switch (intent.type) {
-      _SliderAdjustmentType.up => true,
-      _SliderAdjustmentType.down => false,
-      _SliderAdjustmentType.left => directionality == TextDirection.rtl,
-      _SliderAdjustmentType.right => directionality == TextDirection.ltr,
-    };
+    _handleDirectionalInput(
+      shouldIncrease: switch (intent.type) {
+        _SliderAdjustmentType.up => true,
+        _SliderAdjustmentType.down => false,
+        _SliderAdjustmentType.left => _isRtl,
+        _SliderAdjustmentType.right => !_isRtl,
+      },
+    );
+  }
 
+  void _handleScrollIntent(ScrollIntent intent) {
+    if (!_enabled) {
+      return;
+    }
+    _handleDirectionalInput(
+      shouldIncrease: switch (intent.direction) {
+        AxisDirection.right => !_isRtl,
+        AxisDirection.left => _isRtl,
+        AxisDirection.up => true,
+        AxisDirection.down => false,
+      },
+    );
+  }
+
+  void _handleDirectionalInput({required bool shouldIncrease}) {
     final slider = _renderObjectKey.currentContext!.findRenderObject()! as _RenderSlider;
     return shouldIncrease ? slider.increaseAction() : slider.decreaseAction();
   }
+
+  bool get _isRtl => Directionality.of(_renderObjectKey.currentContext!) == TextDirection.rtl;
 
   bool _focused = false;
   void _handleFocusHighlightChanged(bool focused) {
