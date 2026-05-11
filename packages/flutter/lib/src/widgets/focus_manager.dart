@@ -388,6 +388,24 @@ enum UnfocusDisposition {
 /// call [dispose] when the node is done being used.
 /// {@endtemplate}
 ///
+/// {@template flutter.widgets.FocusNode.focusInvariants}
+/// ## Focus Invariants
+///
+/// The Flutter focus system maintains the following invariant:
+/// **Only nodes with `canRequestFocus = true` can have primary focus.**
+///
+/// This means that if a [FocusNode] has [hasPrimaryFocus] return `true`, then
+/// [canRequestFocus] must also return `true`. This invariant is enforced by the
+/// [FocusManager] and is crucial for ensuring consistent keyboard navigation
+/// behavior.
+///
+/// When `canRequestFocus` is set to `false` on a node that currently has primary
+/// focus, the focus will be moved to another focusable node if possible, or lost
+/// entirely. The focus system will attempt to restore focus to the previously
+/// focused node, then to the first traversable descendant in the scope, and
+/// finally to the root scope as a last resort.
+/// {@endtemplate}
+///
 /// {@template flutter.widgets.FocusNode.keyEvents}
 /// ## Key Event Propagation
 ///
