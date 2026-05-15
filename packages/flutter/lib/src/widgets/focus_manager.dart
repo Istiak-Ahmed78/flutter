@@ -1987,7 +1987,7 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }
     assert(_focusDebug(() => 'Refreshing focus state. Next focus will be $_markedForFocus'));
 
-    // Handle when a focus requested to a non-primary node, but the node is no longer focusable.
+    // Handle when focus is requested to a non-primary node, but the node is no longer focusable.
     // Find an alternative focusable node.
     if (_markedForFocus != null &&
         _markedForFocus != _primaryFocus &&
@@ -2033,17 +2033,17 @@ class FocusManager with DiagnosticableTreeMixin, ChangeNotifier {
     }());
   }
 
-  /// Finds a valid focusable node or returns a fallback focus.
+  /// Finds a valid focusable node or returns a fallback node.
   ///
   /// This method is called when [_markedForFocus] is set to a node that cannot
   /// request focus. It attempts to find an alternative focusable node.
   FocusNode _findValidFocusOrFallback(FocusNode? previousFocus) {
-    // Try to restore focus to previous focus if it's still focusable
+    // Try to restore focus to previous node if it's still focusable
     if (previousFocus != null && previousFocus.canRequestFocus) {
       return previousFocus;
     }
 
-    // If [_markedForFocus] is no more focusable, try to find an alternative
+    // If [_markedForFocus] is no longer focusable, try to find an alternative
     // focusable node within the nearest scope
     final FocusScopeNode scope = previousFocus?.nearestScope ?? rootScope;
     FocusNode? fallbackFocus;

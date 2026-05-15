@@ -346,12 +346,8 @@ abstract class FocusTraversalPolicy with Diagnosticable {
       }
     }
 
-    if (candidate == null) {
-      if (_canRequestTraversalFocus(currentNode)) {
-        return currentNode;
-      } else {
-        return null;
-      }
+    if (candidate == null && _canRequestTraversalFocus(currentNode)) {
+      return currentNode;
     }
 
     return candidate;
