@@ -2411,8 +2411,8 @@ void main() {
     }
   });
 
-  group('FocusNode.canRequestFocus - ', () {
-    // Builds a column of focusable node.
+  group('FocusNode.canRequestFocus -', () {
+    // Builds a column of focusable nodes.
     Widget buildNodeList(List<FocusNode> nodes, Set<int> disabledNodes) {
       return Column(
         children: List<Widget>.generate(
@@ -2472,7 +2472,7 @@ void main() {
 
       // No node can take focus, so focus falls back to the enclosing scope
       // rather than staying on a disabled node.
-      expect(FocusManager.instance.primaryFocus, same(enclosingScope));
+      expect(tester.binding.focusManager.primaryFocus, same(enclosingScope));
       for (final node in nodes) {
         expect(node.hasPrimaryFocus, isFalse);
       }
@@ -2495,9 +2495,9 @@ void main() {
 
     testWidgets('disabling a sibling scope in the same build does not leave '
         'primary focus on its unfocusable child', (WidgetTester tester) async {
-      final FocusNode node = FocusNode(debugLabel: 'node');
-      final FocusNode scopedNode = FocusNode(debugLabel: 'scopedNode');
-      final FocusScopeNode scope = FocusScopeNode(debugLabel: 'scope');
+      final node = FocusNode(debugLabel: 'node');
+      final scopedNode = FocusNode(debugLabel: 'scopedNode');
+      final scope = FocusScopeNode(debugLabel: 'scope');
       addTearDown(() {
         node.dispose();
         scopedNode.dispose();
@@ -2528,7 +2528,78 @@ void main() {
       await tester.pump();
 
       expect(scopedNode.hasPrimaryFocus, isFalse);
-      expect(FocusManager.instance.primaryFocus, same(enclosingScope));
+      expect(tester.binding.focusManager.primaryFocus, same(enclosingScope));
+    });
+
+    testWidgets('a pending autofocus wins over a node that became unfocusable '
+        'in the same build', (WidgetTester tester) async {
+      final List<FocusNode> nodes = createFocusNodes(10);
+      final autofocusNode = FocusNode(debugLabel: 'autofocusNode');
+      addTearDown(() {
+        for (final node in nodes) {
+          node.dispose();
+        }
+        autofocusNode.dispose();
+      });
+
+      Widget build({required Set<int> disabledNodes, required bool autofocus}) {
+        return FocusScope(
+          child: Column(
+            children: <Widget>[
+              for (int index = 0; index < nodes.length; index += 1)
+                Focus(
+                  debugLabel: 'node$index',
+                  focusNode: nodes[index],
+                  canRequestFocus: !disabledNodes.contains(index),
+                  child: const SizedBox.shrink(),
+                ),
+              Focus(focusNode: autofocusNode, autofocus: autofocus, child: const SizedBox.shrink()),
+            ],
+          ),
+        );
+      }
+
+      await tester.pumpWidget(build(disabledNodes: const <int>{}, autofocus: false));
+      await focusEveryNodeInOrder(tester, nodes);
+
+      // Every node becomes unfocusable in this build, which hands the stale
+      // mark to the unfocusable node 9. An autofocus request for the same
+      // scope is queued in that same build, and must win over the stale mark.
+      await tester.pumpWidget(
+        build(disabledNodes: const <int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, autofocus: true),
+      );
+      await tester.pump();
+
+      expect(nodes[9].hasPrimaryFocus, isFalse);
+      expect(autofocusNode.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('an unfocusable ancestor releases an explicitly requested '
+        'focus', (WidgetTester tester) async {
+      final node = FocusNode(debugLabel: 'node');
+      final scope = FocusScopeNode(debugLabel: 'scope');
+      addTearDown(() {
+        node.dispose();
+        scope.dispose();
+      });
+
+      await tester.pumpWidget(
+        FocusScope(
+          node: scope,
+          child: Focus(focusNode: node, child: const SizedBox.shrink()),
+        ),
+      );
+
+      // The mark comes from an explicit requestFocus() call, so the node is
+      // also the scope's focused child. Before the mark can be applied, an
+      // ancestor is disabled, which makes the node unfocusable without moving
+      // focus itself.
+      node.requestFocus();
+      scope.descendantsAreFocusable = false;
+      await tester.pump();
+
+      expect(node.hasPrimaryFocus, isFalse);
+      expect(tester.binding.focusManager.primaryFocus, same(scope));
     });
   });
 }
